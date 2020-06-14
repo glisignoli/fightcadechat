@@ -11,6 +11,7 @@ from protocol import Protocol
 
 import logging
 import json
+import sys
 from player import Player
 from playerstate import PlayerStates
 from threading import Thread
@@ -653,6 +654,7 @@ def main():
             break
 
     logging.info('Joined channel and awaiting commands!')
+
 
 if __name__ == '__main__':
     main()

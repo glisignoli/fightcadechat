@@ -6,3 +6,5 @@ htmlcov
 .pyc
 config.json
 *.log
+fightcadechat.egg-info
+*.tar.gz
