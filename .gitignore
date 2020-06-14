@@ -1,0 +1,8 @@
+venv
+.vscode
+__pycache__
+.coverage
+htmlcov
+.pyc
+config.json
+*.log

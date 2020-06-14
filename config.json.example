@@ -1,0 +1,7 @@
+{
+  "logfile": "/home/fbarecorder/fcbot/fcbot.log",
+  "loglevel": "DEBUG",
+  "username": "myusername",
+  "password": "mypassword",
+  "channel": "sfiii3n"
+}
