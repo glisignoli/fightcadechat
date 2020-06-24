@@ -2,8 +2,6 @@
 import pickle
 import os.path
 import sys
-#from PyQt4.QtCore import QSettings
-
 
 # noinspection PyClassHasNoInit
 class Settings:

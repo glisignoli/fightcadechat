@@ -7,14 +7,18 @@ import struct
 import select
 import errno
 
-from protocol import Protocol
+from fightcadechat.protocol import Protocol
 
 import logging
 import json
 import sys
-from player import Player
-from playerstate import PlayerStates
+from fightcadechat.player import Player
+from fightcadechat.playerstate import PlayerStates
+
 from threading import Thread
+
+from fcreplay.getplayerreplay import main as getfcplayerreplay
+from fcreplay.get import check_player_record_status as fcreplaycheckstatus
 
 with open("config.json") as json_data_file:
     config = json.load(json_data_file)
@@ -322,13 +326,16 @@ class Controller():
         msg, data = Protocol.extractTLV(data)
         try:
             msg = msg.decode('utf-8')
+            name = name.decode('utf-8')
         except ValueError:
             msg = msg
+            name = name
         logging.info(u"<{}> {}".format(name, msg))
         self.emitList.append(
             {
                 'state': 'chatReceived',
-                'message': str(msg)
+                'message': str(msg),
+                'name': str(name)
             }
         )
 
@@ -604,20 +611,50 @@ class Controller():
 
             # Respond to !fcreplay messages
             if str(emit['state']) == 'chatReceived':
+                # Don't capture my own messages lol
+                if str(emit['name']) == 'fcreplay_bot':
+                    continue
+
                 if str(emit['message']).startswith('!fcreplay'):
                     logging.info(f"Receive bot command line {emit['message']}")
                     fcreplayCommands = str(emit['message']).split(' ')
-                    logging.info(f'Split fcreplay commands received are: {fcreplayCommands}')
-                    if 'help' in fcreplayCommands[1] or len(fcreplayCommands) != '3':
+                    logging.info(f'Split fcreplay commands received are: {fcreplayCommands}, length: {len(fcreplayCommands)}')
+
+                    if 'help' in fcreplayCommands[1] or len(fcreplayCommands) != 3:
                         logging.info('Sending help message')
                         returnMessage = '!fcreplay record <challenge>, Eg: "!fcreplay record challenge-1111-1234567890.12@sfiii3n". !fcreplay status <challenge>. ' \
                             'Replays will be uploaded to https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA'
                         self.sendChat(returnMessage)
+
                     if fcreplayCommands[1] == 'record':
                         logging.info('Got a record request')
+                        profile = str(emit['name'])
+                        
                         if fcreplayCommands[2].endswith('sfiii3n'):
+                            challenge = fcreplayCommands[2]
                             # Need to return message with status
-                            pass
+                            try:
+                                status = getfcplayerreplay(profile, challenge)
+                            except Exception as e:
+                                status = 'EXCEPTION'
+                            
+                            if status == 'ADDED':
+                                returnMessage = f"Hi @{profile}, I've added your replay to the encoding queue"
+                                self.sendChat(returnMessage)
+                            elif status == 'TOO_SHORT':
+                                returnMessage = f"Sorry @{profile}, the replay needs to be 60 seconds or longer"
+                                self.sendChat(returnMessage)
+                            elif status == 'ALREADY_EXISTS':
+                                # Return status
+                                status == 
+                            elif status == 'EXCEPTION':
+                                returnMessage = f"Sorry @{profile}, there was something wrong with that request"
+                                self.sendChat(returnMessage)
+                        else:
+                            logging.info('Not a sfiii3n request')
+                            returnMessage = f"Sorry @{profile}, I can only record sfiii3n replays"
+                            self.sendChat(returnMessage)
+
                     if fcreplayCommands[1] == 'status':
                         logging.info('Got a status request')
                         if fcreplayCommands[2].endswith('sfiii3n'):
