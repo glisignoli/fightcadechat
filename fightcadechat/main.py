@@ -651,7 +651,7 @@ class Controller():
             status = fcjobstatus.check_if_finished(fcreplayCommands[2])
             if status == 'FINISHED':
                 challenge_replaced = fcreplayCommands[2].replace('@', '-')
-                returnMessage = f"@{profile} That replay has finished being recorded. You can find it here: https://archive.org/details/{challenge_replaced}"
+                returnMessage = f"@{profile} That replay has finished being recorded. You can find it here: https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA"
             elif status == 'NO_DATA':
                 returnMessage = f"@{profile} That replay doesn't exist in the queue"
             else:
