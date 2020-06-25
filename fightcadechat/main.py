@@ -647,18 +647,26 @@ class Controller():
 
         elif fcreplayCommands[2].endswith('sfiii3n'):
             # Need to check if challenge is valid. Can't do until replay browser is fixed
-            # Get position in queue
-            position = fcjobstatus.get_queue_position(fcreplayCommands[2])
-            # Get state of recording if currently recording
-            if position == 0:
-                jobstatus = fcjobstatus.get_current_job_status()
-                remaning_time = fcjobstatus.get_current_job_remaining()
-                returnMessage = f"@{profile} Currently recording that replay, {remaning_time}s remaining, the current job status is: {jobstatus}"
-            elif str(position) == 'NOT_PLAYER_REPLAY':
-                returnMessage = f"@{profile} That replay isn't a player replay, A player in that match will have to request to record it, " \
-                    "or it will eventually be recorded when the queue is empty"
+            # Check to see if replay is finished:
+            status = fcjobstatus.check_if_finished(fcreplayCommands[2])
+            if status == 'FINISHED':
+                challenge_replaced = fcreplayCommands[2].replace('@', '-')
+                returnMessage = f"@{profile} That replay has finished being recorded. You can find it here: https://archive.org/details/{challenge_replaced}"
+            elif status == 'NO_DATA':
+                returnMessage = f"@{profile} That replay doesn't exist in the queue"
             else:
-                returnMessage = f"@{profile} Replay {fcreplayCommands[2]} is number {position} in the queue"
+                # Get position in queue
+                position = fcjobstatus.get_queue_position(fcreplayCommands[2])
+                # Get state of recording if currently recording
+                if position == 0:
+                    jobstatus = fcjobstatus.get_current_job_status()
+                    remaning_time = fcjobstatus.get_current_job_remaining()
+                    returnMessage = f"@{profile} Currently recording that replay, {remaning_time}s remaining, the current job status is: {jobstatus}"
+                elif str(position) == 'NOT_PLAYER_REPLAY':
+                    returnMessage = f"@{profile} That replay isn't a player replay, A player in that match will have to request to record it, " \
+                        "or it will eventually be recorded when the queue is empty"
+                else:
+                    returnMessage = f"@{profile} Replay {fcreplayCommands[2]} is number {position} in the queue"
             self.sendChat(returnMessage)
 
 
