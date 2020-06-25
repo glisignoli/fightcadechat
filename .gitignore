@@ -5,6 +5,9 @@ __pycache__
 htmlcov
 .pyc
 config.json
+build
+dist
+
 *.log
-fightcadechat.egg-info
+*.egg-info
 *.tar.gz

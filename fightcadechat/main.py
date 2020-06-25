@@ -18,7 +18,7 @@ from fightcadechat.playerstate import PlayerStates
 from threading import Thread
 
 from fcreplay.getplayerreplay import main as getfcplayerreplay
-from fcreplay.get import check_player_record_status as fcreplaycheckstatus
+import fcreplay.jobstatus as fcjobstatus
 
 with open("config.json") as json_data_file:
     config = json.load(json_data_file)
@@ -124,7 +124,7 @@ class Controller():
 
     
     def dispatch(self, seq, data):
-        logging.info('Dispatch ' + Protocol.outOfBandCodeToString(seq) + ' ' + repr(data))
+        logging.debug('Dispatch ' + Protocol.outOfBandCodeToString(seq) + ' ' + repr(data))
         # out of band data
         if seq == Protocol.CHAT_DATA:
             self.parseChatResponse(data)
@@ -330,7 +330,7 @@ class Controller():
         except ValueError:
             msg = msg
             name = name
-        logging.info(u"<{}> {}".format(name, msg))
+        logging.debug(u"<{}> {}".format(name, msg))
         self.emitList.append(
             {
                 'state': 'chatReceived',
@@ -352,7 +352,7 @@ class Controller():
             return
         status1, data = Protocol.extractInt(data)
         status2, data = Protocol.extractInt(data)
-        logging.info("Load channels header " + repr(status1) + repr(status2))
+        logging.debug("Load channels header " + repr(status1) + repr(status2))
         while len(data) > 4:
             room, data = Protocol.extractTLV(data)
             romname, data = Protocol.extractTLV(data)
@@ -368,7 +368,7 @@ class Controller():
                 'port': port,
             }
             self.channels[room.decode("utf-8")] = channel
-        logging.info(repr(self.channels))
+        logging.debug(repr(self.channels))
         self.stateChannelIsLoaded = True
         if len(data) > 0:
             logging.error('Channel REMAINING DATA len {} {}'.format(len(data), repr(data)))
@@ -440,7 +440,7 @@ class Controller():
         while count > 0 and len(data) >= 4:
             state, p1, p2, playerinfo, data = self.__class__.extractStateChangesResponse(data)
             msg = f'State: {state}, p1: {p1}, p2: {p2}, playerInfo: {playerinfo}, data: {data}'
-            logging.info(msg)
+            logging.debug(msg)
             count -= 1
         #if len(data) > 0:
         #    logging.error("stateChangesResponse, remaining data {}".format(repr(data)))
@@ -508,15 +508,15 @@ class Controller():
                         except:
                             pass
                         if dgram:
-                            logging.info("UDP " + repr(dgram) + " from " + repr(addr))
+                            logging.debug("UDP " + repr(dgram) + " from " + repr(addr))
                             self.handleUdpResponse(dgram, addr)
 
     def sendAndForget(self, command, data=b''):
-        logging.info('Sending {} seq {} {}'.format(Protocol.codeToString(command), self.sequence, repr(data)))
+        logging.debug('Sending {} seq {} {}'.format(Protocol.codeToString(command), self.sequence, repr(data)))
         self.sendtcp(struct.pack('!I', command) + data)
 
     def sendAndRemember(self, command, data=b''):
-        logging.info(f'Sending: {Protocol.codeToString(command)} seq: {self.sequence} repr: {repr(data)}')
+        logging.debug(f'Sending: {Protocol.codeToString(command)} seq: {self.sequence} repr: {repr(data)}')
         self.tcpCommandsWaitingForResponse[self.sequence] = command
         self.sendtcp(struct.pack('!I', command) + data)
 
@@ -597,13 +597,77 @@ class Controller():
         except:
             pass
 
-    
+    def sendHelp(self):
+        logging.info('Sending help message')
+        returnMessage = '!fcreplay record <challenge>, Eg: "!fcreplay record challenge-1111-1234567890.12@sfiii3n". !fcreplay status <challenge>. ' \
+        'I can only record replays that show up on your profile page. ' \
+        'Replays will be uploaded to https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA and https://archive.org/details/Fightcade-Archive'
+        self.sendChat(returnMessage)        
+
+
+    def sendRecord(self, fcreplayCommands, profile):
+        logging.info('Got a record request')
+        
+        if fcreplayCommands[2].endswith('sfiii3n'):
+            challenge = fcreplayCommands[2]
+            # Need to return message with status
+            try:
+                status = getfcplayerreplay(profile, challenge)
+            except Exception as e:
+                status = 'EXCEPTION'
+            
+            if status == 'ADDED' or status == 'MARKED_PLAYER':
+                returnMessage = f"Hi @{profile}, I've added your replay to the encoding queue"
+                # TODO return queue position
+                self.sendChat(returnMessage)
+            elif status == 'TOO_SHORT':
+                returnMessage = f"Sorry @{profile}, the replay needs to be 60 seconds or longer"
+                self.sendChat(returnMessage)
+            elif status == 'ALREADY_EXISTS':
+                returnMessage = f"Sorry @{profile}, the replay already exists"
+                self.sendChat(returnMessage)
+            elif status == 'EXCEPTION':
+                returnMessage = f"Sorry @{profile}, there was something wrong with that request"
+                self.sendChat(returnMessage)
+        else:
+            logging.info('Not a sfiii3n request')
+            returnMessage = f"Sorry @{profile}, I can only record sfiii3n replays"
+            self.sendChat(returnMessage)
+
+
+    def sendStatus(self, fcreplayCommands, profile):
+        logging.info('Got a status request')
+        if len(fcreplayCommands) == 2:
+            jobstatus = fcjobstatus.get_current_job_status()
+            jobdata = fcjobstatus.get_current_job_details()
+            remaning_time = fcjobstatus.get_current_job_remaining()
+
+            returnMessage = f"@{profile} Currently encoding: '{jobdata[3]} vs {jobdata[4]}, {remaning_time}s remaining, the current job status is: {jobstatus}"
+            self.sendChat(returnMessage)
+
+        elif fcreplayCommands[2].endswith('sfiii3n'):
+            # Need to check if challenge is valid. Can't do until replay browser is fixed
+            # Get position in queue
+            position = fcjobstatus.get_queue_position(fcreplayCommands[2])
+            # Get state of recording if currently recording
+            if position == 0:
+                jobstatus = fcjobstatus.get_current_job_status()
+                remaning_time = fcjobstatus.get_current_job_remaining()
+                returnMessage = f"@{profile} Currently recording that replay, {remaning_time}s remaining, the current job status is: {jobstatus}"
+            elif str(position) == 'NOT_PLAYER_REPLAY':
+                returnMessage = f"@{profile} That replay isn't a player replay, A player in that match will have to request to record it, " \
+                    "or it will eventually be recorded when the queue is empty"
+            else:
+                returnMessage = f"@{profile} Replay {fcreplayCommands[2]} is number {position} in the queue"
+            self.sendChat(returnMessage)
+
+
     def emitLoop(self):
         #loop over events
         while True:
             try:
                 emit = self.emitList.pop(0)
-                logging.info(f'Got Emit: {emit}')
+                logging.debug(f'Got Emit: {emit}')
             except IndexError as e:
                 continue
             except Exception as e:
@@ -620,49 +684,27 @@ class Controller():
                     fcreplayCommands = str(emit['message']).split(' ')
                     logging.info(f'Split fcreplay commands received are: {fcreplayCommands}, length: {len(fcreplayCommands)}')
 
-                    if 'help' in fcreplayCommands[1] or len(fcreplayCommands) != 3:
-                        logging.info('Sending help message')
-                        returnMessage = '!fcreplay record <challenge>, Eg: "!fcreplay record challenge-1111-1234567890.12@sfiii3n". !fcreplay status <challenge>. ' \
-                            'Replays will be uploaded to https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA'
-                        self.sendChat(returnMessage)
+                    profile = emit['name']
 
-                    if fcreplayCommands[1] == 'record':
-                        logging.info('Got a record request')
-                        profile = str(emit['name'])
-                        
-                        if fcreplayCommands[2].endswith('sfiii3n'):
-                            challenge = fcreplayCommands[2]
-                            # Need to return message with status
-                            try:
-                                status = getfcplayerreplay(profile, challenge)
-                            except Exception as e:
-                                status = 'EXCEPTION'
-                            
-                            if status == 'ADDED':
-                                returnMessage = f"Hi @{profile}, I've added your replay to the encoding queue"
-                                self.sendChat(returnMessage)
-                            elif status == 'TOO_SHORT':
-                                returnMessage = f"Sorry @{profile}, the replay needs to be 60 seconds or longer"
-                                self.sendChat(returnMessage)
-                            elif status == 'ALREADY_EXISTS':
-                                # Return status
-                                status == 
-                            elif status == 'EXCEPTION':
-                                returnMessage = f"Sorry @{profile}, there was something wrong with that request"
-                                self.sendChat(returnMessage)
+                    if len(fcreplayCommands) == 1:
+                        self.sendHelp()
+
+                    elif len(fcreplayCommands) == 2:
+                        if 'status' in fcreplayCommands[1]:
+                            self.sendStatus(fcreplayCommands, profile)
                         else:
-                            logging.info('Not a sfiii3n request')
-                            returnMessage = f"Sorry @{profile}, I can only record sfiii3n replays"
-                            self.sendChat(returnMessage)
+                            self.sendHelp()
 
-                    if fcreplayCommands[1] == 'status':
-                        logging.info('Got a status request')
-                        if fcreplayCommands[2].endswith('sfiii3n'):
-                            # Need to check if challenge is valid. Can't do until replay browser is fixed
-                            # Need to check state of recording
-                            # Need to get position in queue
-                            # Need to return message with status
-                            pass
+                    elif len(fcreplayCommands) == 3:
+                        if fcreplayCommands[1] == 'record':
+                            self.sendRecord(fcreplayCommands, profile)
+                        elif fcreplayCommands[1] == 'status':
+                            self.sendStatus(fcreplayCommands, profile)
+                        else:
+                            self.sendHelp()
+
+                    else:
+                        self.sendHelp()
 
 
 def main():
