@@ -80,6 +80,8 @@ class Controller():
         self.tcpPort = 7000
         self.udpPort = 6009
 
+        self.advertiseTimeSent = int(time.time())
+
     def addUser(self, **kwargs):
         if 'player' in kwargs:
             name = kwargs['player']
@@ -670,9 +672,18 @@ class Controller():
             self.sendChat(returnMessage)
 
 
+    def sendAdvertise(self):
+        if (int(time.time()) - self.advertiseTimeSent) > 3600:
+            returnMessage = "Use !fcreplay to upload your fightcade replays to youtube"
+            self.sendChat(returnMessage)
+            self.advertiseTimeSent = time.time()
+
     def emitLoop(self):
         #loop over events
         while True:
+            # Send channel advertisement every hour
+            self.sendAdvertise()
+
             try:
                 emit = self.emitList.pop(0)
                 logging.debug(f'Got Emit: {emit}')
