@@ -80,7 +80,7 @@ class Controller():
         self.tcpPort = 7000
         self.udpPort = 6009
 
-        self.advertiseTimeSent = int(time.time())
+        self.advertiseTimeSent = 0
 
     def addUser(self, **kwargs):
         if 'player' in kwargs:
