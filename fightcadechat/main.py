@@ -80,7 +80,8 @@ class Controller():
         self.tcpPort = 7000
         self.udpPort = 6009
 
-        self.advertiseTimeSent = 0
+        # Used to send advertisement every hour, or 20seconds after startup
+        self.advertiseTimeSent = (int(time.time()) - 3580)
 
     def addUser(self, **kwargs):
         if 'player' in kwargs:
@@ -674,6 +675,7 @@ class Controller():
 
     def sendAdvertise(self):
         if (int(time.time()) - self.advertiseTimeSent) > 3600:
+            logging.info("Sending channel advertisement")
             returnMessage = "Use !fcreplay to upload your fightcade replays to youtube"
             self.sendChat(returnMessage)
             self.advertiseTimeSent = time.time()
