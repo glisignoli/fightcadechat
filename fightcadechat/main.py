@@ -24,11 +24,12 @@ with open("config.json") as json_data_file:
     config = json.load(json_data_file)
 
 logging.basicConfig(
-        format='%(asctime)s %(levelname)s: %(message)s',
-        filename=config['logfile'],
-        level=config['loglevel'],
-        datefmt='%Y-%m-%d %H:%M:%S'
+    format='%(asctime)s %(levelname)s: %(message)s',
+    filename=config['logfile'],
+    level=config['loglevel'],
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
+
 
 class Controller():
     emitList = []
@@ -98,16 +99,16 @@ class Controller():
             else:
                 p = Player(**kwargs)
                 self.players[name] = p
-    
+
     def connectTcp(self):
         self.tcpConnected = False
-        #noinspection PyBroadException
+        # noinspection PyBroadException
         try:
             if self.tcpSock:
                 self.tcpSock.close()
             self.tcpSock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.channelport = self.tcpPort 
-            if self.channelport==None:
+            self.channelport = self.tcpPort
+            if self.channelport == None:
                 self.channelport = 7000
             self.tcpSock.connect(('ggpo-ng.com', int(self.channelport),))
             self.tcpConnected = True
@@ -125,9 +126,10 @@ class Controller():
             )
         return self.tcpConnected
 
-    
     def dispatch(self, seq, data):
-        logging.debug('Dispatch ' + Protocol.outOfBandCodeToString(seq) + ' ' + repr(data))
+        logging.debug(
+            'Dispatch ' + Protocol.outOfBandCodeToString(seq) + ' ' + repr(data)
+        )
         # out of band data
         if seq == Protocol.CHAT_DATA:
             self.parseChatResponse(data)
@@ -179,15 +181,17 @@ class Controller():
                 status, data = Protocol.extractInt(data)
                 if status != 0:
                     codestr = Protocol.codeToString(origRequest)
-                    logging.error("{} failed, data {}".format(codestr, repr(data)))
-                    if codestr=="SEND_CHALLENGE":
+                    logging.error(
+                        "{} failed, data {}".format(codestr, repr(data))
+                    )
+                    if codestr == "SEND_CHALLENGE":
                         self.emitList.append(
                             {
                                 'state': 'error',
                                 'message': f'SEND_CHALLANGE failed'
                             }
                         )
-                    elif codestr=="CANCEL_CHALLENGE":
+                    elif codestr == "CANCEL_CHALLENGE":
                         pass
                     else:
                         self.emitList.append(
@@ -212,7 +216,9 @@ class Controller():
                 p2 = ''
                 return PlayerStates.QUIT, p1, p2, None, data
             elif code != 1:
-                logging.error("Unknown player state change code {}".format(code))
+                logging.error(
+                    "Unknown player state change code {}".format(code)
+                )
             state, data = Protocol.extractInt(data)
             p2, data = Protocol.extractTLV(data)
             if not p2:
@@ -239,18 +245,21 @@ class Controller():
             )
             return state, p1, p2, playerinfo, data
 
-    
     def handleTcpResponse(self):
         if self.tcpReadState == self.STATE_TCP_READ_LEN:
             if len(self.tcpData) >= 4:
-                self.tcpResponseLen, self.tcpData = Protocol.extractInt(self.tcpData)
+                self.tcpResponseLen, self.tcpData = Protocol.extractInt(
+                    self.tcpData
+                )
                 self.tcpReadState = self.STATE_TCP_READ_DATA
                 self.handleTcpResponse()
         elif self.tcpReadState == self.STATE_TCP_READ_DATA:
             if len(self.tcpData) >= self.tcpResponseLen:
                 # tcpResponseLen should be >= 4
                 if self.tcpResponseLen < 4:
-                    logging.error('Cannot handle TLV payload of less than 4 bytes')
+                    logging.error(
+                        'Cannot handle TLV payload of less than 4 bytes'
+                    )
                     self.tcpData = self.tcpData[self.tcpResponseLen:]
                     self.tcpResponseLen = 0
                     self.tcpReadState = self.STATE_TCP_READ_LEN
@@ -263,7 +272,6 @@ class Controller():
                     self.tcpReadState = self.STATE_TCP_READ_LEN
                     self.dispatch(seq, data[4:])
                     self.handleTcpResponse()
-
 
     def parseAuthResponse(self, data):
         if len(data) < 4:
@@ -287,28 +295,28 @@ class Controller():
                     'message': f'login failed {result}'
                 }
             )
-            if result==6:
+            if result == 6:
                 self.emitList.append(
                     {
                         'state': 'statusMessage',
                         'message': f'login failed wrong password'
                     }
                 )
-            elif result==9:
+            elif result == 9:
                 self.emitList.append(
                     {
                         'state': 'statusMessage',
                         'message': f'too many connection'
                     }
                 )
-            elif result==4:
+            elif result == 4:
                 self.emitList.append(
                     {
                         'state': 'statusMessage',
                         'message': f'Username doesns exist in database'
                     }
                 )
-            elif result==8:
+            elif result == 8:
                 self.emitList.append(
                     {
                         'state': 'statusMessage',
@@ -322,8 +330,7 @@ class Controller():
                         'message': f'login failed {result}'
                     }
                 )
-    
-    
+
     def parseChatResponse(self, data):
         name, data = Protocol.extractTLV(data)
         msg, data = Protocol.extractTLV(data)
@@ -374,7 +381,9 @@ class Controller():
         logging.debug(repr(self.channels))
         self.stateChannelIsLoaded = True
         if len(data) > 0:
-            logging.error('Channel REMAINING DATA len {} {}'.format(len(data), repr(data)))
+            logging.error('Channel REMAINING DATA len {} {}'.format(
+                len(data), repr(data))
+            )
 
     def parseListUsersResponse(self, data):
         self.resetPlayers()
@@ -420,7 +429,9 @@ class Controller():
             }
         )
         if len(data) > 0:
-            logging.error('List users - REMAINING DATA len {} {}'.format(len(data), repr(data)))
+            logging.error(
+                'List users - REMAINING DATA len {} {}'.format(len(data), repr(data))
+            )
 
     def parseMotdResponse(self, data):
         if not data:
@@ -441,13 +452,14 @@ class Controller():
     def parseStateChangesResponse(self, data):
         count, data = Protocol.extractInt(data)
         while count > 0 and len(data) >= 4:
-            state, p1, p2, playerinfo, data = self.__class__.extractStateChangesResponse(data)
+            state, p1, p2, playerinfo, data = self.__class__.extractStateChangesResponse(
+                data
+            )
             msg = f'State: {state}, p1: {p1}, p2: {p2}, playerInfo: {playerinfo}, data: {data}'
             logging.debug(msg)
             count -= 1
-        #if len(data) > 0:
+        # if len(data) > 0:
         #    logging.error("stateChangesResponse, remaining data {}".format(repr(data)))
-
 
     def resetPlayers(self):
         self.available = {}
@@ -468,7 +480,9 @@ class Controller():
             inputready, outputready, exceptready = None, None, None
             # http://stackoverflow.com/questions/13414029/catch-interrupted-system-call-in-threading
             try:
-                inputready, outputready, exceptready = select.select(inputs, [], [], self.selectTimeout)
+                inputready, outputready, exceptready = select.select(
+                    inputs, [], [], self.selectTimeout
+                )
             except select.error as ex:
                 if ex[0] != errno.EINTR and ex[0] != errno.EBADF:
                     raise
@@ -511,15 +525,21 @@ class Controller():
                         except:
                             pass
                         if dgram:
-                            logging.debug("UDP " + repr(dgram) + " from " + repr(addr))
+                            logging.debug("UDP " + repr(dgram) +
+                                          " from " + repr(addr)
+                            )
                             self.handleUdpResponse(dgram, addr)
 
     def sendAndForget(self, command, data=b''):
-        logging.debug('Sending {} seq {} {}'.format(Protocol.codeToString(command), self.sequence, repr(data)))
+        logging.debug('Sending {} seq {} {}'.format(
+            Protocol.codeToString(command), self.sequence, repr(data))
+        )
         self.sendtcp(struct.pack('!I', command) + data)
 
     def sendAndRemember(self, command, data=b''):
-        logging.debug(f'Sending: {Protocol.codeToString(command)} seq: {self.sequence} repr: {repr(data)}')
+        logging.debug(
+            f'Sending: {Protocol.codeToString(command)} seq: {self.sequence} repr: {repr(data)}'
+        )
         self.tcpCommandsWaitingForResponse[self.sequence] = command
         self.sendtcp(struct.pack('!I', command) + data)
 
@@ -528,8 +548,8 @@ class Controller():
         try:
             port = self.udpSock.getsockname()[1]
         except:
-            port=6009
-            #raise
+            port = 6009
+            # raise
         authdata = Protocol.packTLV(username) + Protocol.packTLV(password) + Protocol.packInt(port) + Protocol.packInt(self.__versionNum__)
         self.sendAndRemember(Protocol.AUTH, authdata)
 
@@ -550,15 +570,17 @@ class Controller():
             else:
                 logging.error("Invalid channel {}".format(channel))
 
-        if (int(self.channelport)!=int(self.channels[channel]['port'])):
-            self.switchingServer=True
+        if (int(self.channelport) != int(self.channels[channel]['port'])):
+            self.switchingServer = True
             self.channelport = int(self.channels[channel]['port'])
             self.tcpSock.close()
             self.sequence = 0x1
             self.connectTcp()
             self.sendWelcome()
             self.sendAuth(self.username, self.password)
-        self.sendAndRemember(Protocol.JOIN_CHANNEL, Protocol.packTLV(self.channel))
+        self.sendAndRemember(Protocol.JOIN_CHANNEL,
+                             Protocol.packTLV(self.channel)
+        )
 
     def sendListChannels(self):
         self.sendAndRemember(Protocol.LIST_CHANNELS)
@@ -568,10 +590,12 @@ class Controller():
 
     def sendMOTDRequest(self):
         self.sendAndRemember(Protocol.MOTD)
-        self.switchingServer=False
+        self.switchingServer = False
 
     def sendWelcome(self):
-        self.sendAndRemember(Protocol.WELCOME, b'\x00\x00\x00\x00\x00\x00\x00\x1d\x00\x00\x00\x01')
+        self.sendAndRemember(
+            Protocol.WELCOME, b'\x00\x00\x00\x00\x00\x00\x00\x1d\x00\x00\x00\x01'
+        )
 
     def sendtcp(self, msg):
         # Check if msg is bytes:
@@ -582,7 +606,9 @@ class Controller():
         payloadLen = 4 + len(msg)
         # noinspection PyBroadException
         try:
-            self.tcpSock.send(struct.pack('!II', payloadLen, self.sequence) + msg)
+            self.tcpSock.send(struct.pack(
+                '!II', payloadLen, self.sequence) + msg
+            )
         except:
             self.tcpConnected = False
             self.selectLoopRunning = False
@@ -603,14 +629,13 @@ class Controller():
     def sendHelp(self):
         logging.info('Sending help message')
         returnMessage = '!fcreplay record <challenge>, Eg: "!fcreplay record challenge-1111-1234567890.12@sfiii3n". !fcreplay status <challenge>. ' \
-        'I can only record replays that show up on your profile page. ' \
-        'Replays will be uploaded to https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA and https://archive.org/details/Fightcade-Archive'
-        self.sendChat(returnMessage)        
-
+            'I can only record replays that show up on your profile page. ' \
+            'Replays will be uploaded to https://www.youtube.com/channel/UCrYudzO9Nceu6mVBnFN6haA and https://fba-recorder.uc.r.appspot.com/'
+        self.sendChat(returnMessage)
 
     def sendRecord(self, fcreplayCommands, profile):
         logging.info('Got a record request')
-        
+
         if fcreplayCommands[2].endswith('sfiii3n'):
             challenge = fcreplayCommands[2]
             # Need to return message with status
@@ -618,7 +643,7 @@ class Controller():
                 status = getfcplayerreplay(profile, challenge)
             except Exception as e:
                 status = 'EXCEPTION'
-            
+
             if status == 'ADDED' or status == 'MARKED_PLAYER':
                 returnMessage = f"Hi @{profile}, I've added your replay to the encoding queue"
                 # TODO return queue position
@@ -636,7 +661,6 @@ class Controller():
             logging.info('Not a sfiii3n request')
             returnMessage = f"Sorry @{profile}, I can only record sfiii3n replays"
             self.sendChat(returnMessage)
-
 
     def sendStatus(self, fcreplayCommands, profile):
         logging.info('Got a status request')
@@ -672,7 +696,6 @@ class Controller():
                     returnMessage = f"@{profile} Replay {fcreplayCommands[2]} is number {position} in the queue"
             self.sendChat(returnMessage)
 
-
     def sendAdvertise(self):
         if (int(time.time()) - self.advertiseTimeSent) > 3600:
             logging.info("Sending channel advertisement")
@@ -681,7 +704,7 @@ class Controller():
             self.advertiseTimeSent = time.time()
 
     def emitLoop(self):
-        #loop over events
+        # loop over events
         while True:
             # Send channel advertisement every hour
             self.sendAdvertise()
@@ -702,8 +725,10 @@ class Controller():
 
                 if str(emit['message']).startswith('!fcreplay'):
                     logging.info(f"Receive bot command line {emit['message']}")
-                    fcreplayCommands = str(emit['message']).split(' ')
-                    logging.info(f'Split fcreplay commands received are: {fcreplayCommands}, length: {len(fcreplayCommands)}')
+                    fcreplayCommands = str(emit['message']).split()
+                    logging.info(
+                        f'Split fcreplay commands received are: {fcreplayCommands}, length: {len(fcreplayCommands)}'
+                    )
 
                     profile = emit['name']
 
@@ -739,7 +764,7 @@ def main():
     # Start emit loop in thread
     emitThread = Thread(target=c.emitLoop)
     emitThread.start()
-    
+
     username = config['username']
     password = config['password']
     channel = config['channel']
