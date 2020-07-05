@@ -665,11 +665,10 @@ class Controller():
     def sendStatus(self, fcreplayCommands, profile):
         logging.info('Got a status request')
         if len(fcreplayCommands) == 2:
-            jobstatus = fcjobstatus.get_current_job_status()
             jobdata = fcjobstatus.get_current_job_details()
             remaning_time = fcjobstatus.get_current_job_remaining()
 
-            returnMessage = f"@{profile} Currently encoding: '{jobdata[3]} vs {jobdata[4]}, {remaning_time}s remaining, the current job status is: {jobstatus}"
+            returnMessage = f"@{profile} Currently encoding: '{jobdata.p1} vs {jobdata.p2}, {remaning_time}s remaining, the current job status is: {jobdata.status}"
             self.sendChat(returnMessage)
 
         elif fcreplayCommands[2].endswith('sfiii3n'):
@@ -686,9 +685,9 @@ class Controller():
                 position = fcjobstatus.get_queue_position(fcreplayCommands[2])
                 # Get state of recording if currently recording
                 if position == 0:
-                    jobstatus = fcjobstatus.get_current_job_status()
+                    jobdata = fcjobstatus.get_current_job_details()
                     remaning_time = fcjobstatus.get_current_job_remaining()
-                    returnMessage = f"@{profile} Currently recording that replay, {remaning_time}s remaining, the current job status is: {jobstatus}"
+                    returnMessage = f"@{profile} Currently recording that replay, {remaning_time}s remaining, the current job status is: {jobdata.status}"
                 elif str(position) == 'NOT_PLAYER_REPLAY':
                     returnMessage = f"@{profile} That replay isn't a player replay, A player in that match will have to request to record it, " \
                         "or it will eventually be recorded when the queue is empty"
