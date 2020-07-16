@@ -7,6 +7,9 @@ setup(name='fightcadechat',
       author_email='glisignoli@gmail.com',
       license='GPL3',
       packages=['fightcadechat'],
+      package_data={'fightcadechat': [
+          'data/*',
+      ]},
       entry_points = {
           'console_scripts': [
               'fightcadechat=fightcadechat.main:main',
