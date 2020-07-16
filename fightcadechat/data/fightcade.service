@@ -4,13 +4,11 @@ After=network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=simple
-ExecStart=/home/fc-chatbot/fightcadechat/venv/bin/fightcadechat
+ExecStart=/home/fc-chatbot/fightcadechat/service.sh
 ExecStop=/bin/kill -- $MAINPID
 User=fc-chatbot
 Group=fc-chatbot
 WorkingDirectory=/home/fc-chatbot/fightcadechat
-Environment=VIRTUAL_ENV=/home/fc-chatbot/fightcadechat/venv/bin
-Environment=PATH=$VIRTUAL_ENV/bin:$PATH
 PIDFile=/run/fightcadechat.pid
 
 [Install]
